@@ -7,10 +7,16 @@
 #include <regex.h>
 
 enum {
-  TK_NOTYPE = 256, TK_EQ
+  TK_NOTYPE = 256, TK_EQ = '=',
 
   /* TODO: Add more token types */
-
+  TK_PLUS = '+',
+  TK_MINUS = '-',
+  TK_MUL = '*',
+  TK_DIV = '/',
+  TK_LB = '(',
+  TK_RB = ')',
+  TK_NUM = '0',
 };
 
 static struct rule {
@@ -24,7 +30,18 @@ static struct rule {
 
   {" +", TK_NOTYPE},    // spaces
   {"\\+", '+'},         // plus
-  {"==", TK_EQ}         // equal
+  {"[0-9]+|0[xX][0-9a-fA-F]+", TK_NUM},
+  {"\\$[a-z0-9]+", '$'},
+  {"\\-", '-'},
+  {"\\*", '*'},
+  {"\\/", '/'},
+  {"\\(", '('},
+  {"\\)", ')'},
+  {"\\[", '['},
+  {"\\]", ']'},
+  {"==", '='},         // equal
+  {"\\!=", '!'},
+  {"\\&\\&", '&'}
 };
 
 #define NR_REGEX (sizeof(rules) / sizeof(rules[0]) )
@@ -53,7 +70,7 @@ typedef struct token {
   char str[32];
 } Token;
 
-static Token tokens[32] __attribute__((used)) = {};
+static Token tokens[1024] __attribute__((used)) = {};
 static int nr_token __attribute__((used))  = 0;
 
 static bool make_token(char *e) {
@@ -69,7 +86,6 @@ static bool make_token(char *e) {
       if (regexec(&re[i], e + position, 1, &pmatch, 0) == 0 && pmatch.rm_so == 0) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
-
         Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
             i, rules[i].regex, position, substr_len, substr_len, substr_start);
         position += substr_len;
@@ -80,10 +96,14 @@ static bool make_token(char *e) {
          */
 
         switch (rules[i].token_type) {
-          default: TODO();
+          case TK_NOTYPE:
+            goto a;
+          case '0':
+          case '$':
+            sprintf(tokens[nr_token].str, "%.*s", substr_len, substr_start);
         }
-
-        break;
+        tokens[nr_token++].type = rules[i].token_type;
+a:      break;
       }
     }
 
@@ -96,6 +116,15 @@ static bool make_token(char *e) {
   return true;
 }
 
+int pos0;
+uint32_t eval(int pos);
+struct node0 {
+  char op;
+  int val;
+  struct node0 *next;
+};
+
+
 uint32_t expr(char *e, bool *success) {
   if (!make_token(e)) {
     *success = false;
@@ -103,7 +132,92 @@ uint32_t expr(char *e, bool *success) {
   }
 
   /* TODO: Insert codes to evaluate the expression. */
-  TODO();
-
-  return 0;
+  *success = true;
+  return eval(pos0 = 0);
 }
+
+uint32_t eval(int pos) {
+  struct node0 head;
+  head.val = 0;
+  struct node0 *node = &head;
+  bool suc;
+  while (pos0 < nr_token) {
+    struct node0 next;
+    int val;
+    char op;
+    if (pos0 == pos) op = '+';
+    else op = tokens[pos0 - 1].type;
+    switch (tokens[pos0].type) {
+    case '0':
+      val = strtoul(tokens[pos0].str, NULL, 0);
+      break;
+    case '$':
+      val = isa_reg_str2val(tokens[pos0].str + 1, &suc);
+      break;
+    case '(':
+      val = eval(++pos0);
+      break;
+    case '[':
+      val = pmem[eval(++pos0)];
+      break;
+    case ']':
+    case ')':
+      pos0++;
+      goto b;
+    default:
+      goto a;
+    }
+    node = node->next = (struct node0 *) malloc(sizeof(struct node0));
+    node->val = val;
+    node->op = op;
+a:  pos0++;
+  }
+b:node->next = NULL;
+  node = &head;
+  struct node0 *next;
+  while (next = node->next) {
+    if (next->op == '*') {
+      node->val *= next->val;
+      node->next = next->next;
+    }
+    else if (next->op == '/') {
+      node->val /= next->val;
+      node->next = next->next;
+    }
+    else node = next;
+  }
+  node = &head;
+  while (next = node->next) {
+    if (next->op == '+') {
+      node->val += next->val;
+      node->next = next->next;
+    }
+    else if (next->op == '-') {
+      node->val -= next->val;
+      node->next = next->next;
+    }
+    else node = next;
+  }
+  node = &head;
+  while (next = node->next) {
+    if (next->op == '=') {
+      node->val = node->val == next->val;
+      node->next = next->next;
+    }
+    else if (next->op == '!') {
+      node->val = node->val != next->val;
+      node->next = next->next;
+    }
+    else node = next;
+  }
+  node = &head;
+  while (next = node->next) {
+    if (next->op == '&') {
+      node->val = node->val && next->val;
+      node->next = next->next;
+    }
+    else node = next;
+  }
+  return head.val;
+}
+

@@ -38,6 +38,66 @@ static int cmd_q(char *args) {
 
 static int cmd_help(char *args);
 
+static int cmd_si(char *args) {
+  char *arg = strtok(NULL, " ");
+  if (arg == NULL) cpu_exec(1);
+  else cpu_exec(atoi(arg));
+  return 0;
+}
+
+static int cmd_info(char *args) {
+  char *arg = strtok(NULL, " ");
+  if (arg == NULL) return 1;
+  switch (arg[0]) {
+  case 'r':
+    isa_reg_display();
+    break;
+  case 'w':
+    display_wp();
+  }
+  return 0;
+}
+
+static int cmd_x(char *args) {
+  char *arg1 = strtok(NULL, " ");
+  if (arg1 == NULL) return 1;
+  char *arg2 = strtok(NULL, " ");
+  if (arg2 == NULL) return 1;
+  int len = atoi(arg1);
+  bool suc;
+  int begin = expr(arg2, suc);
+  for (int i = 0; i < len; i++) {
+    if (i % 4 == 0) printf("\n0x%x\t|\t", begin + i);
+    printf("0x%x(%d)\t", pmem[begin + i], pmem[begin + i]);
+  }
+  printf("\n");
+  return 0;
+}
+
+static int cmd_p(char *args) {
+  if (args == NULL) return 1;
+  bool suc;
+  printf("%u\n", expr(args, &suc));
+  return 0;
+}
+
+static int cmd_w(char *args) {
+  if (args == NULL) return 1;
+  WP *p = new_wp(args);
+ // printf("watchpoint %d : %s\n", p->NO, p->expr);
+  return 0;
+}
+
+static int cmd_d(char *args) {
+  char *arg = strtok(NULL, " ");
+  if (arg == NULL) return 1;
+  int n = atoi(arg);
+  if(n < 0) return 1;
+  del_wp(n); 
+  return 0;
+
+}
+
 static struct {
   char *name;
   char *description;
@@ -46,9 +106,13 @@ static struct {
   { "help", "Display informations about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
-
   /* TODO: Add more commands */
-
+  { "si", "Step N instructions", cmd_si },
+  { "info", "Print info", cmd_info },
+  { "x", "Dump memory", cmd_x },
+  { "p", "Evaluate", cmd_p },
+  { "w", "Watchpoint here", cmd_w},
+  { "d", "Delete watchpoint", cmd_d}
 };
 
 #define NR_CMD (sizeof(cmd_table) / sizeof(cmd_table[0]))
@@ -81,7 +145,7 @@ void ui_mainloop(int is_batch_mode) {
     cmd_c(NULL);
     return;
   }
-
+init_wp_pool();
   for (char *str; (str = rl_gets()) != NULL; ) {
     char *str_end = str + strlen(str);
 
