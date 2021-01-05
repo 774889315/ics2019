@@ -8,10 +8,14 @@ typedef struct watchpoint {
   struct watchpoint *next;
 
   /* TODO: Add more members if necessary */
-  char expr[128];
-  uint32_t value;
-  int hit;
+  
+  // struct watchpoint *prev; /* the previous Watchpoint  */
 
+  char EXPR[32];
+
+  int Old_value, New_value;
+   
 } WP;
 
+bool watchpoint_monitor();
 #endif

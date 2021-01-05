@@ -6,9 +6,17 @@
 #include "rtl/relop.h"
 #include "rtl/rtl-wrapper.h"
 
+/* ir(immediate register) - 只能作为rtl_li的目的RTL寄存器
+ * t0,t1 - 只能在RTL伪指令的实现过程中存放中间结果
+ * s0,s1 - 只能在译码辅助函数和执行辅助函数的实现过程存放中间结果
+ */
 extern rtlreg_t s0, s1, t0, t1, ir;
 
-void decinfo_set_jmp(bool is_jmp);
+void decinfo_set_jmp(bool is_jmp);  /* decinfo.is_jmp = is_jmp */
+
+/* interpret relation operation 
+ * QE,NE,LT,LE,GT,GE,LTU,LEU,GTU,GEU
+ */
 bool interpret_relop(uint32_t relop, const rtlreg_t src1, const rtlreg_t src2);
 
 /* RTL basic instructions */
@@ -32,7 +40,7 @@ static inline void interpret_rtl_mv(rtlreg_t* dest, const rtlreg_t *src1) {
     rtl_ ## name (dest, src1, &ir); \
   }
 
-make_rtl_arith_logic(add)
+make_rtl_arith_logic(add) 
 make_rtl_arith_logic(sub)
 make_rtl_arith_logic(and)
 make_rtl_arith_logic(or)
@@ -42,6 +50,7 @@ make_rtl_arith_logic(shr)
 make_rtl_arith_logic(sar)
 make_rtl_arith_logic(mul_lo)
 make_rtl_arith_logic(mul_hi)
+make_rtl_arith_logic(mul_hsu) /* for RV32M-mulhsu */
 make_rtl_arith_logic(imul_lo)
 make_rtl_arith_logic(imul_hi)
 make_rtl_arith_logic(div_q)
@@ -132,12 +141,21 @@ void interpret_rtl_exit(int state, vaddr_t halt_pc, uint32_t halt_ret);
 
 static inline void rtl_not(rtlreg_t *dest, const rtlreg_t* src1) {
   // dest <- ~src1
-  TODO();
+  // TODO();
+  *dest = ~(*src1);
 }
 
 static inline void rtl_sext(rtlreg_t* dest, const rtlreg_t* src1, int width) {
   // dest <- signext(src1[(width * 8 - 1) .. 0])
-  TODO();
+  // TODO();
+  int32_t temp = *src1;
+  switch(width) {
+    case 4: *dest = *src1; return;
+    case 3: temp = temp <<  8; *dest = temp >>  8; return; 
+    case 2: temp = temp << 16; *dest = temp >> 16; return; 
+    case 1: temp = temp << 24; *dest = temp >> 24; return;
+    default: assert(0);
+  }  
 }
 
 static inline void rtl_setrelopi(uint32_t relop, rtlreg_t *dest,
@@ -153,7 +171,8 @@ static inline void rtl_msb(rtlreg_t* dest, const rtlreg_t* src1, int width) {
 
 static inline void rtl_mux(rtlreg_t* dest, const rtlreg_t* cond, const rtlreg_t* src1, const rtlreg_t* src2) {
   // dest <- (cond ? src1 : src2)
-  TODO();
+  // TODO();
+  *dest = (*cond != 0) ? (*src1) : (*src2);
 }
 
 #include "isa/rtl.h"

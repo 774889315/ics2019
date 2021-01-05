@@ -41,8 +41,32 @@ void reg_test() {
 }
 
 void isa_reg_display() {
+  int i = 0;
+  for(i = 0; i < 8; i++) {
+    printf("%s = 0x%08X\t", regsl[i], cpu.gpr[i]._32);
+    if((i + 1) % 4 == 0) printf("\n");
+  }
+  printf("\npc = 0x%08x\n",cpu.pc);
 }
 
 uint32_t isa_reg_str2val(const char *s, bool *success) {
+	*success = true;
+
+	int i;
+
+	if(s[0] == 'e') {
+		for (i = 0; i < 8; i++) if (strcmp(regsl[i], s) == 0) break;
+		return reg_l(i);
+	} else if (s[1] == 'x' || s[1] == 'p') {
+		for (i = 0; i < 8; i++) if (strcmp(regsw[i], s) == 0) break;
+		return reg_w(i);
+	} else if (s[1] == 'l' || s[1] == 'h') {
+		for (i = 0; i < 8; i++) if (strcmp(regsb[i], s) == 0) break;
+		return reg_b(i);
+	} else if (strcmp(s,"pc") == 0) {
+		return cpu.pc;
+	} else
+		*success = false;
+  
   return 0;
 }

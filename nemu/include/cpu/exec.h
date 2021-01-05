@@ -6,14 +6,19 @@
 #include "rtl/rtl.h"
 
 #define make_EHelper(name) void concat(exec_, name) (vaddr_t *pc)
-typedef void (*EHelper) (vaddr_t *);
+
+/*
+ * 执行函数帮助指针，定义了函数的类型 
+ * 指向参数为vaddr_t的函数
+ */
+typedef void (*EHelper) (vaddr_t *); 
 
 #include "cpu/decode.h"
 
 typedef struct {
-  DHelper decode;
-  EHelper execute;
-  int width;
+  DHelper decode;  /* 译码辅助函数 */
+  EHelper execute; /* 执行辅助函数 */
+  int width;       /* 操作数宽度   */
 } OpcodeEntry;
 
 #define IDEXW(id, ex, w)   {concat(decode_, id), concat(exec_, ex), w}
@@ -32,7 +37,7 @@ static inline uint32_t instr_fetch(vaddr_t *pc, int len) {
     strcatf(log_bytebuf, "%02x ", p_instr[i]);
   }
 #endif
-  (*pc) += len;
+  (*pc) += len; // 这里更新的是decinfo.seq_pc，而不是cpu.pc
   return instr;
 }
 
