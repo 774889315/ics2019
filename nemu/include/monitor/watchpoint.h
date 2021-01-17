@@ -11,9 +11,10 @@ typedef struct watchpoint {
   
   // struct watchpoint *prev; /* the previous Watchpoint  */
 
-  char EXPR[32];
+  char expr[32];
 
   int Old_value, New_value;
+  int value, hit;
    
 } WP;
 
